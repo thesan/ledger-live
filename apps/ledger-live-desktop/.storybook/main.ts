@@ -1,6 +1,8 @@
+import path from "path";
 import type { StorybookConfig } from "@storybook/react-vite";
 import { join, dirname, resolve } from "path";
 import { mergeConfig } from "vite";
+import { nodePolyfills } from "vite-plugin-node-polyfills";
 
 /**
  * This function is used to resolve the absolute path of a package.
@@ -19,24 +21,43 @@ const config: StorybookConfig = {
     name: getAbsolutePath("@storybook/react-vite"),
     options: {},
   },
+
   viteFinal: async (config, { configType }) => {
+    console.log(config);
     return mergeConfig(config, {
       define: {
         __DEV__: true,
       },
       resolve: {
         alias: {
-          [`~/renderer/analytics/segment`]: resolve(".storybook/stub.ts"),
-          [`~/renderer/analytics/TrackPage`]: resolve(".storybook/stub.ts"),
+          qs: require.resolve("qs"),
+          fs: resolve(".storybook/__mocks__/fs.ts"),
+
+          // Explicitly alias the 'buffer' module to the installed 'buffer' package
+          "buffer/": "buffer/", // Alias 'buffer/' imports
+          buffer: "buffer", // Alias 'buffer' imports
+
+          electron: resolve(".storybook/__mocks__/electron.ts"),
+          "electron-store": resolve(".storybook/__mocks__/electron-store.ts"),
+
+          "@braze/web-sdk": resolve(".storybook/__mocks__/braze.ts"),
+          "@braze/web-sdk/src/InAppMessage/models/html-message.js": resolve(
+            ".storybook/__mocks__/_null.ts",
+          ),
+
           LLD: resolve("./src/newArch"),
           "~": resolve("./src"),
-          "../hooks/useDetailedAccounts": resolve(".storybook/stub.ts"), // TODO mock dependencies instead
-
-          "@ledgerhq/live-common/deposit/index": resolve(".storybook/stub.ts"),
-          "@ledgerhq/live-common/currencies/index": resolve(".storybook/stub.ts"),
         },
       },
       server: { port: 4400 },
+
+      plugins: [
+        nodePolyfills({
+          exclude: ["fs"],
+          globals: { Buffer: true, process: true },
+          protocolImports: true,
+        }),
+      ],
     });
   },
 };
